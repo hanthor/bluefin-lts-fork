@@ -7,17 +7,14 @@ set -xeuo pipefail
 # This thing slows down downloads A LOT for no reason
 dnf remove -y subscription-manager
 
-dnf -y install centos-release-hyperscale-kernel
-dnf config-manager --set-disabled "centos-hyperscale,centos-hyperscale-kernel"
-dnf --enablerepo="centos-hyperscale" --enablerepo="centos-hyperscale-kernel" -y update kernel
+dnf -y install centos-release-kmods-kernel
+dnf config-manager --set-disabled "centos-kmods-kernel"
+dnf --enablerepo="centos-kmods-kernel" -y update kernel --allowerasing --exclude=kernel-uki-virt
 
 if [ "${ENABLE_TESTING}" == "1" ] ; then
 	# GNOME 48 backport COPR
 	dnf copr enable -y "@centoshyperscale/c${MAJOR_VERSION_NUMBER}s-gnome-48"
         dnf -y install glib2
-  dnf copr enable -y jreilly1821/packages
-        dnf -y install xdg-desktop-portal xdg-desktop-portal-gnome
-  dnf copr disable -y jreilly1821/packages
 fi
 
 dnf -y install 'dnf-command(versionlock)'
@@ -57,6 +54,7 @@ dnf -y install \
 	-x PackageKit \
 	-x PackageKit-command-not-found \
 	-x gnome-software-fedora-langpacks \
+	-x gnome-extensions-app \
 	"NetworkManager-adsl" \
 	"centos-backgrounds" \
 	"gdm" \
