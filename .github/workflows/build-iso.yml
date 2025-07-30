@@ -1,6 +1,7 @@
+---
 name: Build Bluefin LTS ISO
 
-on:
+"on":
   workflow_dispatch:
     inputs:
       image-name:
@@ -19,7 +20,8 @@ on:
         type: boolean
         default: true
   schedule:
-    - cron: "0 2 * * TUE" # Every Tuesday at 2am UTC (after container build)
+    # Every Tuesday at 2am UTC (after container build)
+    - cron: "0 2 * * TUE"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref || github.run_id }}
@@ -40,21 +42,32 @@ jobs:
       contents: read
       packages: read
       id-token: write
-    
+
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        # v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build ISO
         uses: osbuild/bootc-image-builder-action@v1.1.1
         with:
-          image-name: ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DEFAULT_TAG }}
+          image: >-
+            ${{ env.IMAGE_REGISTRY }}/${{ env.IMAGE_NAME }}:${{
+              env.DEFAULT_TAG
+            }}
           config: iso.toml
           type: iso
-          output-name: bluefin-lts-${{ env.CENTOS_VERSION }}
 
       - name: Upload ISO to artifacts
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        # v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: bluefin-lts-iso-${{ env.CENTOS_VERSION }}
           path: "*.iso"
@@ -64,20 +77,23 @@ jobs:
       - name: Upload to Cloudflare R2
         if: ${{ inputs.upload-to-cloudflare != false }}
         env:
-          CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
-          CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+          CLOUDFLARE_R2_ACCESS_KEY_ID: >-
+            ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+          CLOUDFLARE_R2_SECRET_ACCESS_KEY: >-
+            ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
           CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
           CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
         run: |
           # Install AWS CLI for S3-compatible operations
           sudo apt-get update
           sudo apt-get install -y awscli
-          
+
           # Configure AWS CLI for Cloudflare R2
           aws configure set aws_access_key_id "$CLOUDFLARE_R2_ACCESS_KEY_ID"
-          aws configure set aws_secret_access_key "$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
+          aws configure set aws_secret_access_key \
+            "$CLOUDFLARE_R2_SECRET_ACCESS_KEY"
           aws configure set region auto
-          
+
           # Upload ISO files to Cloudflare R2
           for iso_file in *.iso; do
             if [ -f "$iso_file" ]; then
