@@ -84,6 +84,19 @@ jobs:
           CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
           CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
         run: |
+          # Validate required secrets are available
+          if [ -z "$CLOUDFLARE_R2_ACCESS_KEY_ID" ] || \
+             [ -z "$CLOUDFLARE_R2_SECRET_ACCESS_KEY" ] || \
+             [ -z "$CLOUDFLARE_R2_BUCKET" ] || \
+             [ -z "$CLOUDFLARE_R2_ENDPOINT" ]; then
+            echo "Warning: Cloudflare R2 secrets not configured."
+            echo "Skipping upload."
+            echo "Required secrets: CLOUDFLARE_R2_ACCESS_KEY_ID,"
+            echo "CLOUDFLARE_R2_SECRET_ACCESS_KEY, CLOUDFLARE_R2_BUCKET,"
+            echo "CLOUDFLARE_R2_ENDPOINT"
+            exit 0
+          fi
+
           # Install AWS CLI for S3-compatible operations
           sudo apt-get update
           sudo apt-get install -y awscli

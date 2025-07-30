@@ -15,6 +15,16 @@ Larger, more lethal [Bluefin](https://projectbluefin.io). `bluefin:lts` is built
 
 Check [the documentation](https://docs.projectbluefin.io/lts) for the latest instructions.
 
+## ISO Builds
+
+This repository now supports building bootable ISO images using GitHub Actions:
+
+- **Manual ISO Build**: Go to Actions → "Build Bluefin LTS ISO" → "Run workflow"
+- **Scheduled Build**: ISOs are automatically built every Tuesday at 2am UTC
+- **Cloudflare Upload**: Built ISOs are automatically uploaded to Cloudflare R2 storage
+
+The ISO configuration is defined in `iso.toml` and uses the `osbuild/bootc-image-builder-action`.
+
 ## Metrics
 
 ![Alt](https://repobeats.axiom.co/api/embed/3e29c59ccd003fe1939ce0bdfccdee2b14203541.svg "Repobeats analytics image")
