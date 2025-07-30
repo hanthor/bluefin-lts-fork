@@ -1,0 +1,27 @@
+[[customizations.user]]
+name = "centos"
+password = "centos"
+groups = ["wheel"]
+
+[[customizations.filesystem]]
+mountpoint = "/"
+minsize = "20 GiB"
+
+[customizations.installer]
+# Enable offline installer mode
+offline = true
+
+[customizations.installer.kickstart]
+contents = """
+# Basic kickstart for Bluefin LTS ISO
+text
+keyboard us
+lang en_US.UTF-8
+timezone America/New_York
+rootpw --plaintext centos
+user --name=centos --password=centos --groups=wheel
+bootloader --location=mbr
+clearpart --all --initlabel
+autopart
+reboot
+"""
