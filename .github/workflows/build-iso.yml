@@ -39,7 +39,8 @@ jobs:
             echo 'matrix={"include":[{"image_suffix":"","tag_suffix":""},{"image_suffix":"","tag_suffix":"-hwe"},{"image_suffix":"-gdx","tag_suffix":"-hwe"}]}' >> $GITHUB_OUTPUT
           # For manual runs, use the JSON provided in the workflow_dispatch input.
           else
-            echo "matrix={\"include\":${{ inputs.build_combinations }}}" >> $GITHUB_OUTPUT
+            JSON_INPUT='${{ inputs.build_combinations }}'
+            echo "matrix={\"include\":$JSON_INPUT}" >> $GITHUB_OUTPUT
           fi
 
   build:
