@@ -19,8 +19,8 @@ fi
 
 # GNOME 48 backport COPR
 dnf copr enable -y "jreilly1821/c10s-gnome-49"
-dnf -y install glib2
-dnf -y upgrade glib2
+dnf -y install glib2 selinux-policy
+dnf -y upgrade glib2 selinux-policy 
 # Please, dont remove this as it will break everything GNOME related
 dnf versionlock add glib2
 
