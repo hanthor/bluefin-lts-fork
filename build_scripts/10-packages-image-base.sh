@@ -21,10 +21,11 @@ fi
 dnf copr enable -y "jreilly1821/c10s-gnome-49"
 dnf -y install glib2 selinux-policy
 dnf -y upgrade glib2 selinux-policy
+dnf remove systemd-oomd -y || echo "Expected removal to fail if systemd-oomd is not installed"
 dnf -y upgrade --best --allowerasing systemd \
 	systemd-container \
 	systemd-resolved \
-	systemd-oomd \
+	systemd-oomd-defaults \
 	systemd-libs \
 	systemd-pam \
 	systemd-udev
@@ -99,7 +100,6 @@ dnf -y install \
 	plymouth \
 	plymouth-system-theme \
 	fwupd \
-	systemd-{resolved,container,oomd} \
 	libcamera{,-{v4l2,gstreamer,tools}}
 
 # This package adds "[systemd] Failed Units: *" to the bashrc startup
