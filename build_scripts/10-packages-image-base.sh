@@ -17,18 +17,14 @@ else
 	echo "Skipping kernel swap for non-x86_64 architecture: ${ARCH}"
 fi
 
+dnf -y install pam systemd systemd-pam systemd-libs systemd-udev systemd-container systemd-oomd systemd-container
+dnf versionlock add pam
+dnf versionlock add systemd systemd-pam systemd-libs systemd-udev systemd-container systemd-oomd systemd-container
+
 # GNOME 48 backport COPR
 dnf copr enable -y "jreilly1821/c10s-gnome-49"
 dnf -y install glib2 selinux-policy
 dnf -y upgrade glib2 selinux-policy
-dnf remove systemd-oomd -y || echo "Expected removal to fail if systemd-oomd is not installed"
-dnf -y upgrade --best --allowerasing systemd \
-	systemd-container \
-	systemd-resolved \
-	systemd-oomd-defaults \
-	systemd-libs \
-	systemd-pam \
-	systemd-udev
 # Please, dont remove this as it will break everything GNOME related
 dnf versionlock add glib2
 
