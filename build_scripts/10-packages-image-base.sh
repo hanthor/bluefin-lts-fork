@@ -45,6 +45,7 @@ dnf -y install --enablerepo=epel-multimedia \
 	ffmpeg libavcodec @multimedia gstreamer1-plugins-{bad-free,bad-free-libs,good,base} lame{,-libs} libjxl ffmpegthumbnailer
 
 # `dnf group info Workstation` without GNOME
+dnf -y install pam
 dnf group install -y --nobest \
 	-x rsyslog* \
 	-x cockpit \
