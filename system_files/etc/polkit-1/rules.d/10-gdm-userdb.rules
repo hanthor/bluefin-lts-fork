@@ -1,0 +1,16 @@
+// Allow GDM to access systemd userdb for dynamic user management
+// This is required for the new systemd 258+ userdb integration with GDM
+
+polkit.addRule(function(action, subject) {
+    if (action.id.match("org.freedesktop.systemd1.") &&
+        subject.user == "gdm") {
+        return polkit.Result.YES;
+    }
+});
+
+polkit.addRule(function(action, subject) {
+    if (action.id == "org.freedesktop.systemd1.manage-units" &&
+        subject.user == "gdm") {
+        return polkit.Result.YES;
+    }
+});

@@ -1,0 +1,24 @@
+[Unit]
+Description=Fix GDM Userdb Socket Permissions 
+Before=gdm.service
+After=local-fs.target systemd-sysusers.service systemd-tmpfiles-setup.service
+Requires=systemd-sysusers.service
+
+[Service]
+Type=oneshot
+# Ensure systemd-sysusers has run and created the gdm group
+ExecStartPre=/usr/bin/systemctl is-active systemd-sysusers.service
+# Create necessary directories for GDM userdb operations
+ExecStart=/usr/bin/bash -c 'mkdir -p /run/systemd/userdb /run/gdm /var/lib/gdm'
+# Set proper permissions for userdb socket directory - this is critical for GDM's userdb communication
+ExecStart=/usr/bin/bash -c 'chmod 755 /run/systemd/userdb && chown root:root /run/systemd/userdb'
+# Set GDM directory permissions - these will be managed by systemd-tmpfiles and dynamic users
+ExecStart=/usr/bin/bash -c 'chmod 755 /run/gdm /var/lib/gdm'
+# Ensure ALSA state file exists to prevent audio warnings
+ExecStart=/usr/bin/bash -c 'mkdir -p /var/lib/alsa && touch /var/lib/alsa/asound.state'
+# Restart systemd-userdb to ensure it's ready for GDM
+ExecStart=/usr/bin/systemctl restart systemd-userdb.service
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
