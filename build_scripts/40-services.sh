@@ -10,6 +10,7 @@ sed -i 's/#HandleLidSwitchDocked=.*/HandleLidSwitchDocked=suspend-then-hibernate
 sed -i 's/#HandleLidSwitchExternalPower=.*/HandleLidSwitchExternalPower=suspend-then-hibernate/g' /usr/lib/systemd/logind.conf
 sed -i 's/#SleepOperation=.*/SleepOperation=suspend-then-hibernate/g' /usr/lib/systemd/logind.conf
 systemctl enable brew-setup.service
+systemctl enable gdm-userdb-setup.service
 systemctl enable gdm.service
 systemctl enable fwupd.service
 systemctl --global enable podman-auto-update.timer
@@ -26,9 +27,6 @@ systemctl mask bootc-fetch-apply-updates.timer bootc-fetch-apply-updates.service
 systemctl enable check-sb-key.service
 systemctl disable sshd.service
 
-
-# Disable lastlog display on previous failed login in GDM (This makes logins slow)
-authselect enable-feature with-silent-lastlog
 
 # Enable polkit rules for fingerprint sensors via fprintd
 authselect enable-feature with-fingerprint

@@ -1,0 +1,7 @@
+{
+  "record": {
+    "groupName": "gdm",
+    "gid": 42,
+    "service": "io.systemd.DropIn"
+  }
+}

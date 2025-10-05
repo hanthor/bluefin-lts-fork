@@ -1,0 +1,18 @@
+[Unit]
+Description=Ensure GDM users exist in systemd userdb
+Before=gdm.service
+After=systemd-sysusers.service systemd-tmpfiles-setup.service
+Requires=systemd-sysusers.service
+
+[Service]
+Type=oneshot
+# Force systemd-sysusers to reprocess configurations if needed
+ExecStart=/usr/bin/systemd-sysusers
+# Verify the gdm user was created
+ExecStart=/usr/bin/bash -c 'getent passwd gdm || exit 1'
+# Verify the gdm-greeter user can be resolved
+ExecStart=/usr/bin/bash -c 'id gdm >/dev/null 2>&1 || exit 1'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

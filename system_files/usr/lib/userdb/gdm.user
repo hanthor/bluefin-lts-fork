@@ -1,0 +1,11 @@
+{
+  "record": {
+    "userName": "gdm",
+    "uid": 42,
+    "gid": 42,
+    "realName": "GNOME Display Manager",
+    "homeDirectory": "/var/lib/gdm",
+    "shell": "/sbin/nologin",
+    "service": "io.systemd.DropIn"
+  }
+}
