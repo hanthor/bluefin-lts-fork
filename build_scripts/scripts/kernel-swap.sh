@@ -9,33 +9,105 @@ set ${CI:+-x} -euo pipefail
 ### Kernel Swap to Kernel signed with our MOK
 # */
 
-find /tmp/kernel-rpms
-
-pushd /tmp/kernel-rpms
 KERNEL_NAME="kernel"
-CACHED_VERSION=$(find $KERNEL_NAME-*.rpm | grep -P "$KERNEL_NAME-\d+\.\d+\.\d+-\d+$(rpm -E %{dist})" | sed -E "s/$KERNEL_NAME-//;s/\.rpm//")
-popd
 
-# /*
+# Remove existing kernel packages
 # always remove these packages as kernel cache provides signed versions of kernel or kernel-longterm
-# */
 PKGS=( "${KERNEL_NAME}" "${KERNEL_NAME}-core" "${KERNEL_NAME}-modules" "${KERNEL_NAME}-modules-core" "${KERNEL_NAME}-modules-extra" "${KERNEL_NAME}-uki-virt" )
 for pkg in "${PKGS[@]}"; do
-  rpm --erase $pkg --nodeps || true
+  rpm --erase "$pkg" --nodeps || true
 done
 
 if [[ "$ENABLE_HWE" -eq "1" ]]; then
-  export PKGS=( "${KERNEL_NAME}" "${KERNEL_NAME}-core" "${KERNEL_NAME}-modules" )
+  # For HWE mode, use the same Fedora kernel and akmods as ublue-os/bluefin
+  # This provides better hardware support and compatibility
+  
+  # Use the same akmods flavor and Fedora version as bluefin stable
+  # NOTE: Update FEDORA_VERSION to match bluefin's stable release
+  AKMODS_FLAVOR="coreos-stable"
+  FEDORA_VERSION="42"
+  
+  # Get the latest kernel version from ublue-os/akmods using the ostree.linux label
+  # This matches exactly how bluefin determines the kernel version
+  echo "Detecting latest Fedora ${FEDORA_VERSION} kernel from ublue-os/akmods..."
+  KERNEL_VERSION=$(skopeo inspect --retry-times 3 docker://ghcr.io/ublue-os/akmods:"${AKMODS_FLAVOR}"-"${FEDORA_VERSION}" | \
+    jq -r '.Labels["ostree.linux"]')
+  
+  if [[ -z "$KERNEL_VERSION" || "$KERNEL_VERSION" == "null" ]]; then
+    echo "ERROR: Failed to detect kernel version from akmods container"
+    exit 1
+  fi
+  
+  echo "Using Fedora kernel version: ${KERNEL_VERSION}"
+  
+  # Create writable directory for HWE downloads (tmpfs /tmp is read-only)
+  HWE_DOWNLOAD_DIR="/run/hwe-download"
+  mkdir -p "$HWE_DOWNLOAD_DIR"
+  
+  # Fetch Common AKMODS & Kernel RPMS from ublue-os (Fedora packages)
+  echo "Downloading akmods:${AKMODS_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}..."
+  skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods:"${AKMODS_FLAVOR}"-"${FEDORA_VERSION}"-"${KERNEL_VERSION}" dir:"$HWE_DOWNLOAD_DIR"/hwe-akmods
+  AKMODS_TARGZ=$(jq -r '.layers[].digest' <"$HWE_DOWNLOAD_DIR"/hwe-akmods/manifest.json | cut -d : -f 2)
+  tar -xvzf "$HWE_DOWNLOAD_DIR"/hwe-akmods/"$AKMODS_TARGZ" -C "$HWE_DOWNLOAD_DIR"/
+  
+  # Fetch ZFS akmods for HWE (Fedora packages)
+  echo "Downloading akmods-zfs:${AKMODS_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}..."
+  mkdir -p "$HWE_DOWNLOAD_DIR"/akmods-zfs-rpms
+  skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-zfs:"${AKMODS_FLAVOR}"-"${FEDORA_VERSION}"-"${KERNEL_VERSION}" dir:"$HWE_DOWNLOAD_DIR"/hwe-akmods-zfs
+  ZFS_TARGZ=$(jq -r '.layers[].digest' <"$HWE_DOWNLOAD_DIR"/hwe-akmods-zfs/manifest.json | cut -d : -f 2)
+  tar -xvzf "$HWE_DOWNLOAD_DIR"/hwe-akmods-zfs/"$ZFS_TARGZ" -C "$HWE_DOWNLOAD_DIR"/akmods-zfs-rpms
+  
+  # Fetch Nvidia Open akmods for HWE (Fedora packages)
+  echo "Downloading akmods-nvidia-open:${AKMODS_FLAVOR}-${FEDORA_VERSION}-${KERNEL_VERSION}..."
+  mkdir -p "$HWE_DOWNLOAD_DIR"/akmods-nvidia-open-rpms
+  skopeo copy --retry-times 3 docker://ghcr.io/ublue-os/akmods-nvidia-open:"${AKMODS_FLAVOR}"-"${FEDORA_VERSION}"-"${KERNEL_VERSION}" dir:"$HWE_DOWNLOAD_DIR"/hwe-akmods-nvidia
+  NVIDIA_TARGZ=$(jq -r '.layers[].digest' <"$HWE_DOWNLOAD_DIR"/hwe-akmods-nvidia/manifest.json | cut -d : -f 2)
+  tar -xvzf "$HWE_DOWNLOAD_DIR"/hwe-akmods-nvidia/"$NVIDIA_TARGZ" -C "$HWE_DOWNLOAD_DIR"/akmods-nvidia-open-rpms
+  
+  # kernel-rpms directory should be extracted to HWE_DOWNLOAD_DIR
+  # Install the downloaded Fedora kernel packages (all required packages)
+  INSTALL_PKGS=( "${KERNEL_NAME}" "${KERNEL_NAME}-core" "${KERNEL_NAME}-modules" "${KERNEL_NAME}-modules-core" "${KERNEL_NAME}-modules-extra" "${KERNEL_NAME}-devel" "${KERNEL_NAME}-devel-matched" )
+  
+  RPM_NAMES=()
+  for pkg in "${INSTALL_PKGS[@]}"; do
+    rpm_file=$(find "$HWE_DOWNLOAD_DIR"/kernel-rpms -name "$pkg-*.rpm" -type f | head -1)
+    if [[ -n "$rpm_file" ]]; then
+      RPM_NAMES+=("$rpm_file")
+    fi
+  done
+  
+  if [[ ${#RPM_NAMES[@]} -eq 0 ]]; then
+    echo "ERROR: No kernel RPMs found in $HWE_DOWNLOAD_DIR/kernel-rpms"
+    exit 1
+  fi
+  
+  dnf -y install "${RPM_NAMES[@]}"
+  
+  # Install common akmods (matching bluefin's approach)
+  echo "Installing common akmods (xone, openrazer, framework-laptop, v4l2loopback)..."
+  dnf -y install \
+    "$HWE_DOWNLOAD_DIR"/rpms/kmods/*xone*.rpm \
+    "$HWE_DOWNLOAD_DIR"/rpms/kmods/*openrazer*.rpm \
+    "$HWE_DOWNLOAD_DIR"/rpms/kmods/*framework-laptop*.rpm \
+    "$HWE_DOWNLOAD_DIR"/rpms/kmods/*v4l2loopback*.rpm \
+    || echo "Warning: Some common akmods failed to install (non-critical)"
+else
+  # For non-HWE mode, use the kernel from the mounted akmods containers
+  find /tmp/kernel-rpms
+
+  pushd /tmp/kernel-rpms
+  CACHED_VERSION=$(find "$KERNEL_NAME"-*.rpm | grep -P "$KERNEL_NAME-\d+\.\d+\.\d+-\d+$(rpm -E %{dist})" | sed -E "s/$KERNEL_NAME-//;s/\.rpm//")
+  popd
+
+  INSTALL_PKGS=( "${KERNEL_NAME}" "${KERNEL_NAME}-core" "${KERNEL_NAME}-modules" "${KERNEL_NAME}-modules-core" "${KERNEL_NAME}-modules-extra" "${KERNEL_NAME}-uki-virt" "${KERNEL_NAME}-devel" "${KERNEL_NAME}-devel-matched" )
+
+  RPM_NAMES=()
+  for pkg in "${INSTALL_PKGS[@]}"; do
+    RPM_NAMES+=("/tmp/kernel-rpms/$pkg-$CACHED_VERSION.rpm")
+  done
+
+  dnf -y install "${RPM_NAMES[@]}"
 fi
-
-PKGS+=("${KERNEL_NAME}-devel" "${KERNEL_NAME}-devel-matched")
-
-RPM_NAMES=()
-for pkg in "${PKGS[@]}"; do
-  RPM_NAMES+=("/tmp/kernel-rpms/$pkg-$CACHED_VERSION.rpm")
-done
-
-dnf -y install "${RPM_NAMES[@]}"
 
 # /*
 ### Version Lock kernel packages
