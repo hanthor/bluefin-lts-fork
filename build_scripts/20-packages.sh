@@ -40,9 +40,12 @@ dnf -y install \
 	xhost
 rm -rf /usr/share/doc/just
 
-if [[ "${ENABLE_HWE:-0}" -eq 1 || "${ENABLE_GDX:-0}" -eq 1 ]]; then
+if [ "${ENABLE_HWE:-0}" -eq 0 ] || [ "${ENABLE_GDX:-0}" -eq 0 ]; then
     dnf -y install centos-release-kmods
     dnf -y install kernel-core kernel-uki-virt kmod-btrfs
+
+    # Sign the btrfs module for Secure Boot
+    "${SCRIPTS_PATH}/sign-kmod.sh" btrfs
 fi
 
 # Everything that depends on external repositories should be after this.

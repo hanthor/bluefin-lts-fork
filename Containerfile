@@ -37,6 +37,7 @@ RUN --mount=type=tmpfs,dst=/opt \
   --mount=type=bind,from=akmods_zfs,src=/kernel-rpms,dst=/tmp/kernel-rpms \
   --mount=type=bind,from=akmods_nvidia_open,src=/rpms,dst=/tmp/akmods-nvidia-open-rpms \
   --mount=type=bind,from=context,source=/,target=/run/context \
+  --mount=type=secret,id=KMOD_SIGNING_KEY,dst=/tmp/kmod-signing-key.priv,required=false \
   /run/context/build_scripts/build.sh
 
 # Makes `/opt` writeable by default
