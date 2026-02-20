@@ -63,15 +63,20 @@ jobs:
           fi
 
       - name: Generate changelog
-        run: |
-          python3 .github/changelogs.py ${{ steps.target.outputs.target }} --ci
+        uses: hanthor/changelog-action@master
+        with:
+          stream: ${{ steps.target.outputs.target }}
+          family: bluefin-lts
+          output-env: ./output.env
 
       - name: Read changelog outputs
         id: changelog
         run: |
           # Source the output.env file to get TAG and TITLE
           if [ -f output.env ]; then
-            cat output.env >> $GITHUB_OUTPUT
+            source ./output.env
+            echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+            echo "TITLE=${TITLE}" >> $GITHUB_OUTPUT
           else
             echo "output.env not found; assuming changelog generation was skipped"
             echo "skip_release=true" >> $GITHUB_OUTPUT
