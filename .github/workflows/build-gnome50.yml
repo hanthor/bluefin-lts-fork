@@ -2,7 +2,8 @@ name: Build Bluefin GNOME 50 (testing)
 
 # Builds lts-testing-50 and lts-hwe-testing-50 by layering GNOME 50 on top
 # of the already-built GNOME 49 image (lts-testing / lts-hwe-testing).
-# Only runs on main branch pushes; never on lts branch.
+# Triggered after the main LTS build completes to ensure the base image is
+# the GNOME 49 version before layering.
 
 permissions:
   contents: read
@@ -10,7 +11,12 @@ permissions:
   id-token: write
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - "Build Bluefin LTS"
+      - "Build Bluefin LTS HWE"
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
@@ -76,7 +82,7 @@ jobs:
             .
 
       - name: Push image
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch'
         run: |
           podman push \
             "${{ env.IMAGE_REGISTRY }}/${{ matrix.variant.image }}:${{ matrix.variant.tag }}"
